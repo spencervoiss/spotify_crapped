@@ -441,7 +441,7 @@
     "incognito_mode": false
   },
   {
-    "ts": "2024-09-11T23:30:41Z",
+    "ts": "2023-09-11T23:30:41Z",
     "platform": "android",
     "ms_played": 62901,
     "conn_country": "US",
@@ -459,6 +459,27 @@
     "skipped": true,
     "offline": false,
     "offline_timestamp": 1726096325,
+    "incognito_mode": false
+  },
+  {
+    "ts": "2024-10-30T07:37:11Z",
+    "platform": "windows",
+    "ms_played": 4577640,
+    "conn_country": "US",
+    "ip_addr": "136.49.71.75",
+    "master_metadata_track_name": null,
+    "master_metadata_album_artist_name": null,
+    "master_metadata_album_album_name": null,
+    "spotify_track_uri": null,
+    "episode_name": "YOU FINGERED THE PULSE? ft. Jordan Klepper",
+    "episode_show_name": "Guys We F****d",
+    "spotify_episode_uri": "spotify:episode:5XEa2K0L9G6HhbHXapsoBH",
+    "reason_start": "clickrow",
+    "reason_end": "logout",
+    "shuffle": false,
+    "skipped": false,
+    "offline": false,
+    "offline_timestamp": 1730269245,
     "incognito_mode": false
   }
 ]
