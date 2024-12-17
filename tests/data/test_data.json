@@ -481,5 +481,26 @@
     "offline": false,
     "offline_timestamp": 1730269245,
     "incognito_mode": false
+  },
+  {
+    "ts": "2024-08-11T18:15:02Z",
+    "platform": "windows",
+    "ms_played": 199694,
+    "conn_country": "US",
+    "ip_addr": "136.49.71.75",
+    "master_metadata_track_name": "Cadillac Car",
+    "master_metadata_album_artist_name": "Playboy Manbaby",
+    "master_metadata_album_album_name": "Don't Let It Be",
+    "spotify_track_uri": "spotify:track:0ZqniafOAHAOPrI9sH1W9V",
+    "episode_name": null,
+    "episode_show_name": null,
+    "spotify_episode_uri": null,
+    "reason_start": "clickrow",
+    "reason_end": "trackdone",
+    "shuffle": false,
+    "skipped": false,
+    "offline": false,
+    "offline_timestamp": 1726078303,
+    "incognito_mode": false
   }
 ]

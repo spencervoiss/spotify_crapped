@@ -1,5 +1,6 @@
 import argparse
 from spotify_crapped.spotify_crapped import ListeningHistory
+import spotify_crapped.spotify_crapped as sc
 
 def main():
     parser = argparse.ArgumentParser(description="Spotify listening history analysis")
@@ -8,7 +9,10 @@ def main():
     lh = ListeningHistory()
     for path in args.listening_history_jsons:
         lh.add_history(path)
-    print(lh.listening_history)
+    lh.add_filter(sc.filter_by_not_skipped(lh.listening_history))
+    pretty_fields = sc.prettify_fields(lh.filtered_history)
+    deep_sleep = sc.load_playlist_from_csv("/home/rzyxl1/git/spotify_crapped/tests/data/deep_sleep.csv")
+    print(deep_sleep)
 
 if __name__ == "__main__":
     main()

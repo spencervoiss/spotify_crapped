@@ -1,9 +1,10 @@
 """Module for interactig with spotify listening history. Imports a JSON file with listening history
 """
 
+import csv
 import json
 import re
-from typing import List
+from typing import Any, Dict, List
 
 import pandas as pd
 
@@ -21,7 +22,74 @@ def read_history_json(path: str) -> pd.DataFrame:
     return pd.DataFrame(data)
 
 
-def remove_unused_fields(listening_history: pd.DataFrame) -> pd.DataFrame:
+def remove_unused_fields_from_playlist(playlist: pd.DataFrame) -> pd.DataFrame:
+    """Removes all fields from the playlist DataFrame except for the track name and artist name"""
+    return playlist[["Track Name", "Artist Name(s)"]]
+
+
+def remove_secondary_artists_from_playlist(playlist: pd.DataFrame) -> pd.DataFrame:
+    """Removes any artists listed after the first artist in the playlist DataFrame"""
+    filtered_playlist = playlist.copy()
+    filtered_playlist["Artist Name(s)"] = (
+        filtered_playlist["Artist Name(s)"].str.split(",").str[0]
+    )
+    filtered_playlist.rename(columns={"Artist Name(s)": "Artist"}, inplace=True)
+    return filtered_playlist
+
+
+def load_playlist_from_csv(path: str) -> pd.DataFrame:
+    """Loads a playlist from a CSV file
+
+    Arguments:
+        path: Path to the CSV file
+
+    Returns:
+        DataFrame with the playlist data
+    """
+    with open(path, "r", encoding="UTF-8") as file:
+        playlist = pd.read_csv(file)
+    cleaned_playlist = remove_unused_fields_from_playlist(playlist)
+    cleaned_playlist_first_artists_only = remove_secondary_artists_from_playlist(
+        cleaned_playlist
+    )
+    cleaned_playlist_first_artists_only.rename(
+        columns={"Track Name": "Track"}, inplace=True
+    )
+    return cleaned_playlist_first_artists_only
+
+
+def filter_playlist_from_history(listening_history: pd.DataFrame, playlist: pd.DataFrame) -> pd.Series:
+    """Filters a listening history DataFrame by removing any songs in the playlist from the history
+
+    Arguments:
+        listening_history: DataFrame with listening history data
+        playlist: DataFrame with the playlist data to be filtered out
+
+    Returns:
+        Series with the filter condition
+    """   
+    playlist_filter = ~listening_history["master_metadata_track_name"].isin(playlist["Track"])
+    return playlist_filter
+
+
+def prettify_fields(listening_history: pd.DataFrame) -> pd.DataFrame:
+    """Makes names of the fields in the listening history DataFrame more human-readable"""
+    pretty_history = listening_history.copy()
+    pretty_history.rename(
+        columns={
+            "ts": "Timestamp",
+            "master_metadata_track_name": "Track",
+            "master_metadata_album_artist_name": "Artist",
+            "master_metadata_album_album_name": "Album",
+            "ms_played": "Playtime (ms)",
+            "play_count": "Play Count",
+        },
+        inplace=True,
+    )
+    return pretty_history
+
+
+def remove_unused_fields_from_history(listening_history: pd.DataFrame) -> pd.DataFrame:
     """Removes unused fields from a listening history DataFrame
 
     Arguments:
@@ -147,21 +215,80 @@ def filter_by_years(listening_history: pd.DataFrame, years: List[int]) -> pd.Ser
     return listening_history["ts"].dt.year.isin(years)
 
 
-def get_top_n_artists(listening_history: pd.DataFrame, rank_count: int) -> pd.Series:
-    """Returns the top ten artists in a listening history DataFrame
+def sort_songs_by_play_count(listening_history: pd.DataFrame) -> pd.DataFrame:
+    """Sorts a listening history DataFrame by song play count
 
     Arguments:
         listening_history: DataFrame with listening history data
-        rank_count: Number of artists to return
 
     Returns:
-        Series with the top `rank_count` artists
+        DataFrame sorted by song play count
     """
-    return (
-        listening_history["master_metadata_album_artist_name"]
-        .value_counts()
-        .head(rank_count)
+    song_play_counts = (
+        listening_history.groupby(
+            ["master_metadata_album_artist_name", "master_metadata_track_name"],
+            as_index=False,
+        )
+        .size()
+        .rename(columns={"size": "play_count"})
     )
+
+    # Rank songs by play count
+    song_play_counts["rank"] = song_play_counts["play_count"].rank(
+        ascending=False, method="min"
+    )
+    # Sort by rank and reset index for cleaner output
+    ranked_songs = song_play_counts.sort_values(
+        by=["rank", "master_metadata_track_name"]
+    ).reset_index(drop=True)
+
+    # Reorganize columns for clarity
+    ranked_songs = ranked_songs[
+        [
+            "rank",
+            "master_metadata_track_name",
+            "master_metadata_album_artist_name",
+            "play_count",
+        ]
+    ]
+
+    return ranked_songs
+
+
+def sort_artists_by_play_count(listening_history: pd.DataFrame) -> pd.DataFrame:
+    """Sorts a listening history DataFrame by artist play count
+
+    Arguments:
+        listening_history: DataFrame with listening history data
+
+    Returns:
+        DataFrame sorted by artist play count
+    """
+    return listening_history["master_metadata_album_artist_name"].value_counts()
+
+
+def sort_artists_by_playtime(listening_history: pd.DataFrame) -> pd.DataFrame:
+    """Sorts a listening history DataFrame by artist playtime
+
+    Arguments:
+        listening_history: DataFrame with listening history data
+
+    Returns:
+        DataFrame sorted by artist playtime
+    """
+    artist_playtime = (
+        listening_history.groupby("master_metadata_album_artist_name", as_index=False)
+        .agg({"ms_played": "sum"})
+        .rename(columns={"ms_played": "total_playtime_ms"})
+        .sort_values(by="total_playtime_ms", ascending=False)
+    )
+    artist_playtime.reset_index(drop=True, inplace=True)
+    artist_playtime.index = artist_playtime.index + 1
+    artist_playtime["Total Playtime"] = pd.to_timedelta(
+        artist_playtime["total_playtime_ms"], unit="ms"
+    )
+    artist_playtime.drop(columns="total_playtime_ms", inplace=True)
+    return artist_playtime
 
 
 class ListeningHistory:
@@ -185,13 +312,16 @@ class ListeningHistory:
         """
         new_history_raw = read_history_json(new_history_path)
         new_history_songs_only = filter_songs_only(new_history_raw)
-        new_history_cleaned_fields = remove_unused_fields(new_history_songs_only)
+        new_history_cleaned_fields = remove_unused_fields_from_history(
+            new_history_songs_only
+        )
         new_history_cleaned_stamps = convert_timestamps_to_datetime(
             new_history_cleaned_fields
         )
         self.listening_history = pd.concat(
             [self.listening_history, new_history_cleaned_stamps], ignore_index=True
         )
+        self.filtered_history = apply_filters(self.listening_history, self.filters)
         return
 
     def add_filter(self, filter_condition: pd.Series) -> None:
@@ -210,7 +340,7 @@ class ListeningHistory:
         self.filtered_history = apply_filters(self.listening_history, self.filters)
         return
 
-    def get_top_n_artists(self, rank_count: int) -> pd.Series:
+    def get_top_artists_by_count(self) -> pd.Series:
         """Returns the top ten artists in the listening history
 
         Arguments:
@@ -219,4 +349,20 @@ class ListeningHistory:
         Returns:
             Series with the top `rank_count` artists
         """
-        return get_top_n_artists(self.filtered_history, rank_count)
+        return sort_artists_by_play_count(self.filtered_history)
+
+    def get_top_artists_by_playtime(self) -> pd.DataFrame:
+        """Returns the top artists in the listening history by playtime
+
+        Returns:
+            DataFrame with the top artists by playtime
+        """
+        return sort_artists_by_playtime(self.filtered_history)
+
+    def get_top_songs_by_count(self) -> pd.Series:
+        """Returns the songs in the listening history by play count"""
+        return sort_songs_by_play_count(self.filtered_history)
+
+    def pretty_history(self) -> pd.DataFrame:
+        """Returns a pretty version of the listening history"""
+        return prettify_fields(self.filtered_history)
