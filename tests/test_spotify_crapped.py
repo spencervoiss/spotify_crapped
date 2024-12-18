@@ -136,12 +136,42 @@ def mock_listening_history():
         ]
     )
 
+@pytest.fixture
+def mock_mixed_listening_history(mock_listening_history):
+    """Create a short mock listening history containing both songs and podcasts"""
+    podcast_episodes = pd.DataFrame(
+        [
+            {
+                "ts": "2024-10-30T07:00:00Z",
+                "master_metadata_track_name": None,
+                "master_metadata_album_artist_name": None,
+                "master_metadata_album_album_name": None,
+                "episode_name": "podcast_episode_1",
+                "episode_show_name": "podcast_1",
+                "skipped": False,
+                "ms_played": 1,
+            },
+            {
+                "ts": "2024-10-30T07:00:00Z",
+                "master_metadata_track_name": None,
+                "master_metadata_album_artist_name": None,
+                "master_metadata_album_album_name": None,
+                "episode_name": "podcast_episode_2",
+                "episode_show_name": "podcast_2",
+                "skipped": False,
+                "ms_played": 1,
+            },
+        ]
+    )
+    mock_listening_history["episode_name"] = None
+    mock_listening_history["episode_show_name"] = None
+    return pd.concat([mock_listening_history, podcast_episodes])
+    
 
 def test_read_listening_history_json():
     path = pathlib.Path(__file__).parent / "data" / "test_data.json"
     listening_history = spotify_crapped.read_listening_history_json(path)
     assert len(listening_history) == 23
-
 
 def test_add_history_from_path():
     path = pathlib.Path(__file__).parent / "data" / "test_data.json"
@@ -160,6 +190,11 @@ def test_add_history(mock_listening_history):
     lh.add_history(mock_listening_history)
     assert len(lh.listening_history) == 2 * len(mock_listening_history)
 
+def test_remove_non_songs(mock_mixed_listening_history, mock_listening_history):
+    assert len(mock_mixed_listening_history) != len(mock_listening_history)
+    lh = spotify_crapped.ListeningHistory()
+    lh.add_history(mock_mixed_listening_history)
+    assert len(lh.listening_history) == len(mock_listening_history)
 
 def test_filter_by_artists(mock_listening_history):
     lh = spotify_crapped.ListeningHistory()
