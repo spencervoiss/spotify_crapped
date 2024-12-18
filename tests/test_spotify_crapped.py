@@ -6,6 +6,13 @@ import pytest
 import spotify_crapped.spotify_crapped as spotify_crapped
 
 
+# ███████ ██ ██   ██ ████████ ██    ██ ██████  ███████ ███████
+# ██      ██  ██ ██     ██    ██    ██ ██   ██ ██      ██
+# █████   ██   ███      ██    ██    ██ ██████  █████   ███████
+# ██      ██  ██ ██     ██    ██    ██ ██   ██ ██           ██
+# ██      ██ ██   ██    ██     ██████  ██   ██ ███████ ███████
+
+
 @pytest.fixture
 def mock_dirty_playlist():
     """Creates a mock playlist for testing playlist cleaning functions"""
@@ -169,28 +176,56 @@ def mock_mixed_listening_history(mock_listening_history):
     return pd.concat([mock_listening_history, podcast_episodes])
 
 
+# ██     ██  ██████      ████████ ███████ ███████ ████████ ███████
+# ██    ██  ██    ██        ██    ██      ██         ██    ██
+# ██   ██   ██    ██        ██    █████   ███████    ██    ███████
+# ██  ██    ██    ██        ██    ██           ██    ██         ██
+# ██ ██      ██████         ██    ███████ ███████    ██    ███████
+
+
 def test_read_listening_history_json():
     path = pathlib.Path(__file__).parent / "data" / "test_data.json"
     listening_history = spotify_crapped.read_listening_history_json(path)
     assert len(listening_history) == 23
 
 
-def test_add_history_from_path():
-    path = pathlib.Path(__file__).parent / "data" / "test_data.json"
-    lh = spotify_crapped.ListeningHistory()
-    lh.add_history_from_path(path)
-    assert len(lh.listening_history) == 23
-    extra_data_path = pathlib.Path(__file__).parent / "data" / "test_data_2.json"
-    lh.add_history_from_path(extra_data_path)
-    assert len(lh.listening_history) == 26
+def test_load_playlist_from_csv():
+    path = pathlib.Path(__file__).parent / "data" / "deep_sleep.csv"
+    playlist = spotify_crapped.read_playlist_from_csv(path)
+    assert len(playlist) == 228
 
 
-def test_add_history(mock_listening_history):
+def test_remove_secondary_artists_from_playlist(mock_dirty_playlist):
+    playlist = spotify_crapped.remove_secondary_artists_from_playlist(
+        spotify_crapped.rename_playlist_fields(mock_dirty_playlist)
+    )
+    assert playlist.iloc[1]["master_metadata_album_artist_name"] == "playlist_artist_2"
+
+
+def test_rename_playlist_fields(mock_dirty_playlist):
+    playlist = spotify_crapped.rename_playlist_fields(mock_dirty_playlist)
+    assert "master_metadata_album_artist_name" in playlist.columns
+    assert "master_metadata_track_name" in playlist.columns
+
+
+# ███████ ██ ██      ████████ ███████ ██████      ████████ ███████ ███████ ████████ ███████
+# ██      ██ ██         ██    ██      ██   ██        ██    ██      ██         ██    ██
+# █████   ██ ██         ██    █████   ██████         ██    █████   ███████    ██    ███████
+# ██      ██ ██         ██    ██      ██   ██        ██    ██           ██    ██         ██
+# ██      ██ ███████    ██    ███████ ██   ██        ██    ███████ ███████    ██    ███████
+
+
+def test_filter_playlist_from_history(mock_clean_playlist, mock_listening_history):
     lh = spotify_crapped.ListeningHistory()
     lh.add_history(mock_listening_history)
-    assert len(lh.listening_history) == len(mock_listening_history)
-    lh.add_history(mock_listening_history)
-    assert len(lh.listening_history) == 2 * len(mock_listening_history)
+
+    playlist_filter = spotify_crapped.filter_playlist_from_history(
+        lh.listening_history, mock_clean_playlist
+    )
+    lh.add_filter(playlist_filter)
+    assert len(lh.filtered_history) == len(mock_listening_history) - len(
+        mock_clean_playlist
+    )
 
 
 def test_remove_non_songs(mock_mixed_listening_history, mock_listening_history):
@@ -236,6 +271,13 @@ def test_filter_by_years(mock_listening_history):
     assert len(lh.filtered_history) == 0
 
 
+# ███████  ██████  ██████  ████████     ████████ ███████ ███████ ████████ ███████
+# ██      ██    ██ ██   ██    ██           ██    ██      ██         ██    ██
+# ███████ ██    ██ ██████     ██           ██    █████   ███████    ██    ███████
+#      ██ ██    ██ ██   ██    ██           ██    ██           ██    ██         ██
+# ███████  ██████  ██   ██    ██           ██    ███████ ███████    ██    ███████
+
+
 def test_get_top_artists_by_playtime(mock_listening_history):
     lh = spotify_crapped.ListeningHistory()
     lh.add_history(mock_listening_history)
@@ -252,33 +294,41 @@ def test_get_top_songs_by_count(mock_listening_history):
     assert top_songs.iloc[0]["play_count"] == 2
 
 
-def test_load_playlist_from_csv():
-    path = pathlib.Path(__file__).parent / "data" / "deep_sleep.csv"
-    playlist = spotify_crapped.read_playlist_from_csv(path)
-    assert len(playlist) == 228
-
-
-def test_remove_secondary_artists_from_playlist(mock_dirty_playlist):
-    playlist = spotify_crapped.remove_secondary_artists_from_playlist(
-        spotify_crapped.rename_playlist_fields(mock_dirty_playlist)
-    )
-    assert playlist.iloc[1]["master_metadata_album_artist_name"] == "playlist_artist_2"
-
-
-def test_rename_playlist_fields(mock_dirty_playlist):
-    playlist = spotify_crapped.rename_playlist_fields(mock_dirty_playlist)
-    assert "master_metadata_album_artist_name" in playlist.columns
-    assert "master_metadata_track_name" in playlist.columns
-
-
-def test_filter_playlist_from_history(mock_clean_playlist, mock_listening_history):
+def test_get_top_albums(mock_listening_history):
     lh = spotify_crapped.ListeningHistory()
     lh.add_history(mock_listening_history)
+    top_albums = lh.get_top_albums_by_count()
+    assert top_albums.iloc[0]["master_metadata_album_album_name"] == "album_3"
+    assert top_albums.iloc[0]["master_metadata_album_artist_name"] == "artist_3"
+    assert top_albums.iloc[0]["play_count"] == 3
 
-    playlist_filter = spotify_crapped.filter_playlist_from_history(
-        lh.listening_history, mock_clean_playlist
-    )
-    lh.add_filter(playlist_filter)
-    assert len(lh.filtered_history) == len(mock_listening_history) - len(
-        mock_clean_playlist
-    )
+
+#  ██████ ██       █████  ███████ ███████     ████████ ███████ ███████ ████████ ███████
+# ██      ██      ██   ██ ██      ██             ██    ██      ██         ██    ██
+# ██      ██      ███████ ███████ ███████        ██    █████   ███████    ██    ███████
+# ██      ██      ██   ██      ██      ██        ██    ██           ██    ██         ██
+#  ██████ ███████ ██   ██ ███████ ███████        ██    ███████ ███████    ██    ███████
+
+
+def test_print_history(mock_listening_history):
+    lh = spotify_crapped.ListeningHistory()
+    lh.add_history(mock_listening_history)
+    print(lh)
+
+
+def test_add_history_from_path():
+    path = pathlib.Path(__file__).parent / "data" / "test_data.json"
+    lh = spotify_crapped.ListeningHistory()
+    lh.add_history_from_path(path)
+    assert len(lh.listening_history) == 23
+    extra_data_path = pathlib.Path(__file__).parent / "data" / "test_data_2.json"
+    lh.add_history_from_path(extra_data_path)
+    assert len(lh.listening_history) == 26
+
+
+def test_add_history(mock_listening_history):
+    lh = spotify_crapped.ListeningHistory()
+    lh.add_history(mock_listening_history)
+    assert len(lh.listening_history) == len(mock_listening_history)
+    lh.add_history(mock_listening_history)
+    assert len(lh.listening_history) == 2 * len(mock_listening_history)
