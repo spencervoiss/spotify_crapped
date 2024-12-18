@@ -1,4 +1,3 @@
-import logging
 import pathlib
 
 import pandas as pd
@@ -8,8 +7,8 @@ import spotify_crapped.spotify_crapped as spotify_crapped
 
 
 @pytest.fixture
-def mock_playlist():
-    """Creates a mock playlist for filtering from listening history"""
+def mock_dirty_playlist():
+    """Creates a mock playlist for testing playlist cleaning functions"""
     return pd.DataFrame(
         [
             {
@@ -19,6 +18,23 @@ def mock_playlist():
             {
                 "Track Name": "playlist_track_2",
                 "Artist Name(s)": "playlist_artist_2, secondary_artist",
+            },
+        ]
+    )
+
+
+@pytest.fixture
+def mock_clean_playlist():
+    """Creates a mock playlist for filtering from listening history"""
+    return pd.DataFrame(
+        [
+            {
+                "master_metadata_track_name": "track_1",
+                "master_metadata_album_artist_name": "playlist_artist_1",
+            },
+            {
+                "master_metadata_track_name": "playlist_track_2",
+                "master_metadata_album_artist_name": "playlist_artist_2",
             },
         ]
     )
@@ -103,7 +119,7 @@ def mock_listening_history():
             },
             {
                 "ts": "2024-09-11T23:12:05Z",
-                "master_metadata_track_name": "playlist_track_1",
+                "master_metadata_track_name": "track_1",
                 "master_metadata_album_artist_name": "playlist_artist_1",
                 "master_metadata_album_album_name": "album_6",
                 "skipped": False,
@@ -203,17 +219,27 @@ def test_load_playlist_from_csv():
     assert len(playlist) == 228
 
 
-def test_remove_secondary_artists_from_playlist(mock_playlist):
-    playlist = spotify_crapped.remove_secondary_artists_from_playlist(mock_playlist)
-    assert playlist.iloc[1]["Artist Name(s)"] == "playlist_artist_2"
+def test_remove_secondary_artists_from_playlist(mock_dirty_playlist):
+    playlist = spotify_crapped.remove_secondary_artists_from_playlist(
+        spotify_crapped.rename_playlist_fields(mock_dirty_playlist)
+    )
+    assert playlist.iloc[1]["master_metadata_album_artist_name"] == "playlist_artist_2"
 
 
-def test_filter_playlist_from_history(mock_playlist, mock_listening_history):
+def test_rename_playlist_fields(mock_dirty_playlist):
+    playlist = spotify_crapped.rename_playlist_fields(mock_dirty_playlist)
+    assert "master_metadata_album_artist_name" in playlist.columns
+    assert "master_metadata_track_name" in playlist.columns
+
+
+def test_filter_playlist_from_history(mock_clean_playlist, mock_listening_history):
     lh = spotify_crapped.ListeningHistory()
     lh.add_history(mock_listening_history)
 
     playlist_filter = spotify_crapped.filter_playlist_from_history(
-        lh.listening_history, spotify_crapped.rename_playlist_fields(mock_playlist)
+        lh.listening_history, mock_clean_playlist
     )
     lh.add_filter(playlist_filter)
-    assert len(lh.filtered_history) == len(mock_listening_history) - len(mock_playlist)
+    assert len(lh.filtered_history) == len(mock_listening_history) - len(
+        mock_clean_playlist
+    )

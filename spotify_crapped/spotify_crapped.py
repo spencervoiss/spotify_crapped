@@ -30,15 +30,20 @@ def remove_unused_fields_from_playlist(playlist: pd.DataFrame) -> pd.DataFrame:
 def remove_secondary_artists_from_playlist(playlist: pd.DataFrame) -> pd.DataFrame:
     """Removes any artists listed after the first artist in the playlist DataFrame"""
     filtered_playlist = playlist.copy()
-    filtered_playlist["Artist Name(s)"] = (
-        filtered_playlist["Artist Name(s)"].str.split(",").str[0]
+    filtered_playlist["master_metadata_album_artist_name"] = (
+        filtered_playlist["master_metadata_album_artist_name"].str.split(",").str[0]
     )
     return filtered_playlist
 
 
 def rename_playlist_fields(playlist: pd.DataFrame) -> pd.DataFrame:
     """Renames the fields in the playlist DataFrame to match the listening history DataFrame"""
-    return playlist.rename(columns={"Track Name": "Track", "Artist Name(s)": "Artist"})
+    return playlist.rename(
+        columns={
+            "Track Name": "master_metadata_track_name",
+            "Artist Name(s)": "master_metadata_album_artist_name",
+        }
+    )
 
 
 def load_playlist_from_csv(path: str) -> pd.DataFrame:
@@ -53,31 +58,9 @@ def load_playlist_from_csv(path: str) -> pd.DataFrame:
     with open(path, "r", encoding="UTF-8") as file:
         playlist = pd.read_csv(file)
     cleaned_playlist = remove_unused_fields_from_playlist(playlist)
-    cleaned_playlist_first_artists_only = remove_secondary_artists_from_playlist(
-        cleaned_playlist
-    )
-    cleaned_playlist_renamed_fields = rename_playlist_fields(
-        cleaned_playlist_first_artists_only
-    )
-    return cleaned_playlist_renamed_fields
-
-
-def filter_playlist_from_history(
-    listening_history: pd.DataFrame, playlist: pd.DataFrame
-) -> pd.Series:
-    """Filters a listening history DataFrame by removing any songs in the playlist from the history
-
-    Arguments:
-        listening_history: DataFrame with listening history data
-        playlist: DataFrame with the playlist data to be filtered out
-
-    Returns:
-        Series with the filter condition
-    """
-    playlist_filter = ~listening_history["master_metadata_track_name"].isin(
-        playlist["Track"]
-    )
-    return playlist_filter
+    cleaned_playlist = rename_playlist_fields(cleaned_playlist)
+    cleaned_playlist = remove_secondary_artists_from_playlist(cleaned_playlist)
+    return cleaned_playlist
 
 
 def prettify_fields(listening_history: pd.DataFrame) -> pd.DataFrame:
@@ -123,7 +106,7 @@ def remove_unused_fields_from_history(listening_history: pd.DataFrame) -> pd.Dat
             "offline_timestamp",
             "incognito_mode",
         ],
-        errors='ignore'
+        errors="ignore",
     )
 
 
@@ -140,6 +123,18 @@ def convert_timestamps_to_datetime(listening_history: pd.DataFrame) -> pd.DataFr
         listening_history["ts"], format="%Y-%m-%dT%H:%M:%SZ"
     )
     return listening_history
+
+
+def remove_non_songs(listening_history: pd.DataFrame) -> pd.DataFrame:
+    """Filters only songs from a listening history DataFrame
+
+    Arguments:
+        listening_history: DataFrame with listening history data
+
+    Returns:
+        DataFrame with only songs
+    """
+    return listening_history.dropna(subset=["master_metadata_track_name"])
 
 
 def apply_filters(listening_history: pd.DataFrame, filters: list) -> pd.DataFrame:
@@ -159,16 +154,27 @@ def apply_filters(listening_history: pd.DataFrame, filters: list) -> pd.DataFram
     return filtered_history
 
 
-def filter_songs_only(listening_history: pd.DataFrame) -> pd.DataFrame:
-    """Filters only songs from a listening history DataFrame
+def filter_playlist_from_history(
+    listening_history: pd.DataFrame, playlist: pd.DataFrame
+) -> pd.Series:
+    """Filters a listening history DataFrame by removing any songs in the playlist from the history
 
     Arguments:
         listening_history: DataFrame with listening history data
+        playlist: DataFrame with the playlist data to be filtered out
 
     Returns:
-        DataFrame with only songs
+        Series with the filter condition
     """
-    return listening_history.dropna(subset=["master_metadata_track_name"])
+    return (
+        listening_history.merge(
+            playlist,
+            on=["master_metadata_track_name", "master_metadata_album_artist_name"],
+            how="left",
+            indicator=True,
+        )["_merge"]
+        == "left_only"
+    )
 
 
 def filter_by_song_title(listening_history: pd.DataFrame, song_title: str) -> pd.Series:
@@ -330,7 +336,7 @@ class ListeningHistory:
         Arguments:
             new_history_dataframe: DataFrame with listening history data
         """
-        new_history_songs_only = filter_songs_only(new_history_dataframe)
+        new_history_songs_only = remove_non_songs(new_history_dataframe)
         new_history_cleaned_fields = remove_unused_fields_from_history(
             new_history_songs_only
         )
