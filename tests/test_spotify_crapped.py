@@ -13,7 +13,7 @@ def mock_playlist():
     return pd.DataFrame(
         [
             {
-                "Track Name": "playlist_track_1",
+                "Track Name": "track_1",
                 "Artist Name(s)": "playlist_artist_1",
             },
             {
@@ -128,6 +128,7 @@ def test_read_listening_history_json():
 
 
 def test_add_history_from_path():
+    path = pathlib.Path(__file__).parent / "data" / "test_data.json"
     lh = spotify_crapped.ListeningHistory()
     lh.add_history_from_path(path)
     assert len(lh.listening_history) == 23
@@ -136,11 +137,11 @@ def test_add_history_from_path():
     assert len(lh.listening_history) == 26
 
 
-def test_add_history_from_dataframe(mock_listening_history):
+def test_add_history(mock_listening_history):
     lh = spotify_crapped.ListeningHistory()
-    lh.add_history_from_dataframe(mock_listening_history)
+    lh.add_history(mock_listening_history)
     assert len(lh.listening_history) == len(mock_listening_history)
-    lh.add_history_from_dataframe(mock_listening_history)
+    lh.add_history(mock_listening_history)
     assert len(lh.listening_history) == 2 * len(mock_listening_history)
 
 
@@ -193,7 +194,7 @@ def test_get_top_songs_by_count(mock_listening_history):
     top_songs = lh.get_top_songs_by_count()
     assert top_songs.iloc[0]["master_metadata_track_name"] == "track_4"
     assert top_songs.iloc[0]["master_metadata_album_artist_name"] == "artist_3"
-    assert top_songs.iloc[0]["count"] == 2
+    assert top_songs.iloc[0]["play_count"] == 2
 
 
 def test_load_playlist_from_csv():
@@ -210,8 +211,9 @@ def test_remove_secondary_artists_from_playlist(mock_playlist):
 def test_filter_playlist_from_history(mock_playlist, mock_listening_history):
     lh = spotify_crapped.ListeningHistory()
     lh.add_history(mock_listening_history)
+
     playlist_filter = spotify_crapped.filter_playlist_from_history(
-        lh.listening_history, mock_playlist
+        lh.listening_history, spotify_crapped.rename_playlist_fields(mock_playlist)
     )
     lh.add_filter(playlist_filter)
     assert len(lh.filtered_history) == len(mock_listening_history) - len(mock_playlist)
