@@ -301,6 +301,46 @@ def sort_artists_by_play_count(listening_history: pd.DataFrame) -> pd.DataFrame:
     return listening_history["master_metadata_album_artist_name"].value_counts()
 
 
+def sort_albums_by_play_count(listening_history: pd.DataFrame) -> pd.DataFrame:
+    """Sorts a listening history DataFrame by album play count
+
+    Arguments:
+        listening_history: DataFrame with listening history data
+
+    Returns:
+        DataFrame sorted by album play count
+    """
+    song_play_counts = (
+        listening_history.groupby(
+            ["master_metadata_album_artist_name", "master_metadata_album_album_name"],
+            as_index=False,
+        )
+        .size()
+        .rename(columns={"size": "play_count"})
+    )
+
+    # Rank albums by play count
+    song_play_counts["rank"] = song_play_counts["play_count"].rank(
+        ascending=False, method="min"
+    )
+    # Sort by rank and reset index for cleaner output
+    ranked_songs = song_play_counts.sort_values(
+        by=["rank", "master_metadata_album_album_name"]
+    ).reset_index(drop=True)
+
+    # Reorganize columns for clarity
+    ranked_songs = ranked_songs[
+        [
+            "rank",
+            "master_metadata_album_album_name",
+            "master_metadata_album_artist_name",
+            "play_count",
+        ]
+    ]
+
+    return ranked_songs
+
+
 def sort_artists_by_playtime(listening_history: pd.DataFrame) -> pd.DataFrame:
     """Sorts a listening history DataFrame by artist playtime
 
@@ -344,6 +384,9 @@ class ListeningHistory:
         self.filtered_history = pd.DataFrame()
         self.filters = []
         return
+
+    def __repr__(self):
+        return prettify_fields(self.filtered_history).__repr__()
 
     def add_history_from_path(self, new_history_path: str) -> None:
         """Adds a new history to the object from a path to a spotify listening history json
@@ -414,6 +457,10 @@ class ListeningHistory:
         """Returns the songs in the listening history by play count"""
         return sort_songs_by_play_count(self.filtered_history)
 
+    def get_top_albums_by_count(self) -> pd.Series:
+        """Returns the albums in the listening history by play count"""
+        return sort_albums_by_play_count(self.filtered_history)
+
     def pretty_history(self) -> pd.DataFrame:
-        """Returns a pretty version of the listening history"""
+        """Returns a the listening history with more human-readable column names"""
         return prettify_fields(self.filtered_history)
