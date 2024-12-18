@@ -33,8 +33,12 @@ def remove_secondary_artists_from_playlist(playlist: pd.DataFrame) -> pd.DataFra
     filtered_playlist["Artist Name(s)"] = (
         filtered_playlist["Artist Name(s)"].str.split(",").str[0]
     )
-    filtered_playlist.rename(columns={"Artist Name(s)": "Artist"}, inplace=True)
     return filtered_playlist
+
+
+def rename_playlist_fields(playlist: pd.DataFrame) -> pd.DataFrame:
+    """Renames the fields in the playlist DataFrame to match the listening history DataFrame"""
+    return playlist.rename(columns={"Track Name": "Track", "Artist Name(s)": "Artist"})
 
 
 def load_playlist_from_csv(path: str) -> pd.DataFrame:
@@ -52,13 +56,15 @@ def load_playlist_from_csv(path: str) -> pd.DataFrame:
     cleaned_playlist_first_artists_only = remove_secondary_artists_from_playlist(
         cleaned_playlist
     )
-    cleaned_playlist_first_artists_only.rename(
-        columns={"Track Name": "Track"}, inplace=True
+    cleaned_playlist_renamed_fields = rename_playlist_fields(
+        cleaned_playlist_first_artists_only
     )
-    return cleaned_playlist_first_artists_only
+    return cleaned_playlist_renamed_fields
 
 
-def filter_playlist_from_history(listening_history: pd.DataFrame, playlist: pd.DataFrame) -> pd.Series:
+def filter_playlist_from_history(
+    listening_history: pd.DataFrame, playlist: pd.DataFrame
+) -> pd.Series:
     """Filters a listening history DataFrame by removing any songs in the playlist from the history
 
     Arguments:
@@ -67,8 +73,10 @@ def filter_playlist_from_history(listening_history: pd.DataFrame, playlist: pd.D
 
     Returns:
         Series with the filter condition
-    """   
-    playlist_filter = ~listening_history["master_metadata_track_name"].isin(playlist["Track"])
+    """
+    playlist_filter = ~listening_history["master_metadata_track_name"].isin(
+        playlist["Track"]
+    )
     return playlist_filter
 
 
@@ -304,14 +312,24 @@ class ListeningHistory:
         self.filters = []
         return
 
-    def add_history(self, new_history_path: str) -> None:
-        """Adds a new history to the object
+    def add_history_from_path(self, new_history_path: str) -> None:
+        """Adds a new history to the object from a path to a spotify listening history json
 
         Arguments:
             new_history_path: Path to a spotify listening history json
         """
-        new_history_raw = read_history_json(new_history_path)
-        new_history_songs_only = filter_songs_only(new_history_raw)
+        new_history_raw: pd.DataFrame = read_history_json(new_history_path)
+        self.add_history(new_history_raw)
+        return
+
+    def add_history(self, new_history_dataframe: pd.DataFrame) -> None:
+        """Adds a new history to the object from a pandas dataframe, removing unused fields
+        and converting timestamps from strings to datetime objects
+
+        Arguments:
+            new_history_dataframe: DataFrame with listening history data
+        """
+        new_history_songs_only = filter_songs_only(new_history_dataframe)
         new_history_cleaned_fields = remove_unused_fields_from_history(
             new_history_songs_only
         )
