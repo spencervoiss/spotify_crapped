@@ -8,6 +8,12 @@ from typing import Any, Dict, List
 
 import pandas as pd
 
+#  ██     ██  ██████      ███    ███ ███████ ████████ ██   ██  ██████  ██████  ███████
+#  ██    ██  ██    ██     ████  ████ ██         ██    ██   ██ ██    ██ ██   ██ ██
+#  ██   ██   ██    ██     ██ ████ ██ █████      ██    ███████ ██    ██ ██   ██ ███████
+#  ██  ██    ██    ██     ██  ██  ██ ██         ██    ██   ██ ██    ██ ██   ██      ██
+#  ██ ██      ██████      ██      ██ ███████    ██    ██   ██  ██████  ██████  ███████
+
 
 def read_listening_history_json(path: str) -> pd.DataFrame:
     """Reads a JSON file with listening history data, removes malformed trailing commas,
@@ -137,6 +143,13 @@ def remove_non_songs(listening_history: pd.DataFrame) -> pd.DataFrame:
     return listening_history.dropna(subset=["master_metadata_track_name"])
 
 
+#  ██  ██      ███████ ██ ██      ████████ ███████ ██████  ███████
+# ████████     ██      ██ ██         ██    ██      ██   ██ ██
+#  ██  ██      █████   ██ ██         ██    █████   ██████  ███████
+# ████████     ██      ██ ██         ██    ██      ██   ██      ██
+#  ██  ██      ██      ██ ███████    ██    ███████ ██   ██ ███████
+
+
 def apply_filters(listening_history: pd.DataFrame, filters: list) -> pd.DataFrame:
     """Applies a list of filters to a listening history DataFrame
 
@@ -230,6 +243,13 @@ def filter_by_years(listening_history: pd.DataFrame, years: List[int]) -> pd.Ser
     return listening_history["ts"].dt.year.isin(years)
 
 
+# ███████  ██████  ██████  ████████ ██ ███    ██  ██████
+# ██      ██    ██ ██   ██    ██    ██ ████   ██ ██
+# ███████ ██    ██ ██████     ██    ██ ██ ██  ██ ██   ███
+#      ██ ██    ██ ██   ██    ██    ██ ██  ██ ██ ██    ██
+# ███████  ██████  ██   ██    ██    ██ ██   ████  ██████
+
+
 def sort_songs_by_play_count(listening_history: pd.DataFrame) -> pd.DataFrame:
     """Sorts a listening history DataFrame by song play count
 
@@ -304,6 +324,13 @@ def sort_artists_by_playtime(listening_history: pd.DataFrame) -> pd.DataFrame:
     )
     artist_playtime.drop(columns="total_playtime_ms", inplace=True)
     return artist_playtime
+
+
+#  ██████ ██       █████  ███████ ███████
+# ██      ██      ██   ██ ██      ██
+# ██      ██      ███████ ███████ ███████
+# ██      ██      ██   ██      ██      ██
+#  ██████ ███████ ██   ██ ███████ ███████
 
 
 class ListeningHistory:
