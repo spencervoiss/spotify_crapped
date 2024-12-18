@@ -250,7 +250,7 @@ def test_get_top_songs_by_count(mock_listening_history):
 
 def test_load_playlist_from_csv():
     path = pathlib.Path(__file__).parent / "data" / "deep_sleep.csv"
-    playlist = spotify_crapped.load_playlist_from_csv(path)
+    playlist = spotify_crapped.read_playlist_from_csv(path)
     assert len(playlist) == 228
 
 

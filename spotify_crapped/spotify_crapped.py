@@ -46,7 +46,7 @@ def rename_playlist_fields(playlist: pd.DataFrame) -> pd.DataFrame:
     )
 
 
-def load_playlist_from_csv(path: str) -> pd.DataFrame:
+def read_playlist_from_csv(path: str) -> pd.DataFrame:
     """Loads a playlist from a CSV file
 
     Arguments:
