@@ -9,7 +9,7 @@ from typing import Any, Dict, List
 import pandas as pd
 
 
-def read_history_json(path: str) -> pd.DataFrame:
+def read_listening_history_json(path: str) -> pd.DataFrame:
     """Reads a JSON file with listening history data, removes malformed trailing commas,
     and returns a pandas DataFrame
     """
@@ -122,7 +122,8 @@ def remove_unused_fields_from_history(listening_history: pd.DataFrame) -> pd.Dat
             "offline",
             "offline_timestamp",
             "incognito_mode",
-        ]
+        ],
+        errors='ignore'
     )
 
 
@@ -318,7 +319,7 @@ class ListeningHistory:
         Arguments:
             new_history_path: Path to a spotify listening history json
         """
-        new_history_raw: pd.DataFrame = read_history_json(new_history_path)
+        new_history_raw: pd.DataFrame = read_listening_history_json(new_history_path)
         self.add_history(new_history_raw)
         return
 
