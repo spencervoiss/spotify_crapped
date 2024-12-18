@@ -1,10 +1,9 @@
 """Module for interactig with spotify listening history. Imports a JSON file with listening history
 """
 
-import csv
 import json
 import re
-from typing import Any, Dict, List
+from typing import Any, List
 
 import pandas as pd
 
